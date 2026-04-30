@@ -6,7 +6,9 @@ local Window = Rayfield:CreateWindow({
    Name = "Anime Apocalypse",
    LoadingTitle = "Cargando.",
    LoadingSubtitle = "by GTK",
-   ConfigurationSaving = { Enabled = false }
+   ConfigurationSaving = {
+   Enabled = false,
+}
 })
 
 local Tab = Window:CreateTab("Main", 4483362458)
@@ -65,7 +67,7 @@ task.spawn(function()
          end
       end
 
-      task.wait(1) -- más rápido que 4
+      task.wait(3) -- más rápido que 4
    end
 end)
 
@@ -105,7 +107,7 @@ task.spawn(function()
          end
       end
 
-      task.wait(0.5)
+      task.wait(1.5)
    end
 end)
 
@@ -118,13 +120,41 @@ Tab:CreateToggle({
    Callback = function(v) _G.Aura = v end,
 })
 
+local Utils = require(game:GetService("ReplicatedStorage").Assets.Modules.Utils)
+
+local function getEquippedForm()
+    local slots = player:WaitForChild("Data"):WaitForChild("AbilitySlots")
+
+    local decoded = Utils.Decode(slots.Value)
+
+    for slot, info in pairs(decoded) do
+        if info and info.Showcasing then
+            return info.Name
+        end
+    end
+
+    return nil
+end
+
+
 task.spawn(function()
-   while true do
-      if _G.Aura then
-         game:GetService("ReplicatedStorage").Assets.Remotes.Interact:FireServer("M1","King of Curses",tick())
-      end
-      task.wait(0.2)
-   end
+    while true do
+        if _G.Aura then
+
+            local form = getEquippedForm()
+
+            if form then
+                game:GetService("ReplicatedStorage")
+                    .Assets.Remotes.Interact:FireServer(
+                        "M1",
+                        form,
+                        tick()
+                    )
+            end
+
+        end
+        task.wait(0.25)
+    end
 end)
 
 ---------------------------------------------------
@@ -139,10 +169,10 @@ Tab:CreateToggle({
 task.spawn(function()
    while true do
       if _G.Keys then
-         for _,k in ipairs({"Z","X","C","G","E"}) do
+         for _,k in ipairs({"Z","X","C","G","V","E"}) do
             VIM:SendKeyEvent(true,k,false,game)
             VIM:SendKeyEvent(false,k,false,game)
-            task.wait(0.1)
+            task.wait(0.5)
          end
       end
       task.wait(1)
@@ -206,22 +236,59 @@ end
 
 _G.CurrentTarget = nil
 
+local function isPriority(name)
+   for _,p in ipairs(_G.PriorityList) do
+      if string.find(string.lower(name), string.lower(p)) then
+         return true
+      end
+   end
+   return false
+end
+
+
+_G.PriorityList = {
+   "King of Curses",
+   "Samurai",
+   "Lava Admiral",
+   "Upper Moon 3",
+   "Marine"
+}
+
 local function getTarget()
    local zombies = workspace:FindFirstChild("Zombies")
    if not zombies then return nil end
 
-   if _G.CurrentTarget and _G.CurrentTarget.Parent == zombies then
-      return _G.CurrentTarget
+   local char = player.Character
+   if not char or not char:FindFirstChild("HumanoidRootPart") then return nil end
+
+   local myPos = char.HumanoidRootPart.Position
+
+   local best = nil
+   local bestDist = math.huge
+   local priorityTarget = nil
+   local priorityDist = math.huge
+
+   for _,z in pairs(zombies:GetChildren()) do
+      local hrp = z:FindFirstChild("HumanoidRootPart")
+
+      if hrp then
+         local dist = (hrp.Position - myPos).Magnitude
+
+         if isPriority(z.Name) then
+            if dist < priorityDist then
+               priorityDist = dist
+               priorityTarget = z
+            end
+         end
+
+         if dist < bestDist then
+            bestDist = dist
+            best = z
+         end
+      end
    end
 
-   local list = zombies:GetChildren()
-   if #list > 0 then
-      _G.CurrentTarget = list[10] or list[1]
-      return _G.CurrentTarget
-   end
-
-   _G.CurrentTarget = nil
-   return nil
+   return priorityTarget or best
 end
 
 local function setupFloat(char)
@@ -295,15 +362,11 @@ task.spawn(function()
          local zombies = workspace:FindFirstChild("Zombies")
 
          if zombies then
-            if not _G.CurrentTarget or _G.CurrentTarget.Parent ~= zombies then
-               local list = zombies:GetChildren()
-               _G.CurrentTarget = list[10] or list[1]
-            end
+   local target = getTarget()
+   print("Target:", target)
 
-            local target = _G.CurrentTarget
-
-            if target and target:FindFirstChild("HumanoidRootPart") then
-               local enemyHRP = target.HumanoidRootPart
+   if target and target:FindFirstChild("HumanoidRootPart") then
+      local enemyHRP = target.HumanoidRootPart
 
                local baseDist = tonumber(_G.TPDistance) or 5
                local dist = baseDist + 2 -- 👈 margen extra
@@ -364,7 +427,7 @@ task.spawn(function()
          _G.CurrentTarget = nil
       end
 
-      task.wait(0.03)
+      task.wait(0.07)
    end
 end)
 
