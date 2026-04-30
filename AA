@@ -6,19 +6,14 @@ local Window = Rayfield:CreateWindow({
    Name = "Anime Apocalypse",
    LoadingTitle = "Cargando.",
    LoadingSubtitle = "by GTK",
-   ConfigurationSaving = {
-      Enabled = false
-   }
+   ConfigurationSaving = { Enabled = false }
 })
 
--- Tab
 local Tab = Window:CreateTab("Main", 4483362458)
 
 -- Servicios
 local Players = game:GetService("Players")
-local TeleportService = game:GetService("TeleportService")
 local VIM = game:GetService("VirtualInputManager")
-
 local player = Players.LocalPlayer
 
 -- Estados
@@ -26,58 +21,127 @@ _G.Aura = false
 _G.Keys = false
 _G.AutoTP = false
 _G.AutoRejoin = false
-_G.TPMode = "Arriba"
 _G.TPDistance = 5
 
----------------------------------------------------
--- 🔥 AURA (usa tu remote)
----------------------------------------------------
+
+
+_G.AutoGate = false
+
 Tab:CreateToggle({
-   Name = "Aura",
+   Name = "Auto Gate (Touch)",
    CurrentValue = false,
-   Callback = function(Value)
-      _G.Aura = Value
+   Callback = function(v)
+      _G.AutoGate = v
    end,
 })
 
 task.spawn(function()
    while true do
-      if _G.Aura then
-         local args = {
-            [1] = "M1",
-            [2] = "King of Curses",
-            [3] = tick()
-         }
+      if _G.AutoGate then
+         local char = player.Character
+         if char and char:FindFirstChild("HumanoidRootPart") then
 
-         game:GetService("ReplicatedStorage")
-            :WaitForChild("Assets")
-            :WaitForChild("Remotes")
-            :WaitForChild("Interact")
-            :FireServer(unpack(args))
+            local hrp = char.HumanoidRootPart
+            local map = workspace:FindFirstChild("Map")
+
+            if map then
+               for _,obj in pairs(map:GetDescendants()) do
+                  
+                  -- 🔍 detectar cualquier hitbox real
+                  if obj:IsA("BasePart") and obj.Name == "Hitbox" then
+                     
+                     if obj:FindFirstChild("TouchInterest") then
+                        
+                        -- 🔥 tocar puerta
+                        firetouchinterest(hrp, obj, 0)
+                        firetouchinterest(hrp, obj, 1)
+
+                     end
+                  end
+
+               end
+            end
+
+         end
+      end
+
+      task.wait(1) -- más rápido que 4
+   end
+end)
+
+_G.AutoCoin = false
+
+Tab:CreateToggle({
+   Name = "Auto Drops",
+   CurrentValue = false,
+   Callback = function(v)
+      _G.AutoCoin = v
+   end,
+})
+
+task.spawn(function()
+   while true do
+      if _G.AutoCoin then
+         local char = player.Character
+         if char and char:FindFirstChild("HumanoidRootPart") then
+
+            local hrp = char.HumanoidRootPart
+            local thrown = workspace:FindFirstChild("Thrown")
+
+            if thrown then
+               for _,obj in pairs(thrown:GetDescendants()) do
+                  
+                  -- 🔍 cualquier hitbox con TouchInterest
+                  if obj:IsA("BasePart") and obj:FindFirstChild("TouchInterest") then
+                     
+                     -- 🔥 simular contacto real
+                     firetouchinterest(hrp, obj, 0)
+                     firetouchinterest(hrp, obj, 1)
+
+                  end
+               end
+            end
+
+         end
+      end
+
+      task.wait(0.5)
+   end
+end)
+
+---------------------------------------------------
+-- 🔥 AURA
+---------------------------------------------------
+Tab:CreateToggle({
+   Name = "Aura",
+   CurrentValue = false,
+   Callback = function(v) _G.Aura = v end,
+})
+
+task.spawn(function()
+   while true do
+      if _G.Aura then
+         game:GetService("ReplicatedStorage").Assets.Remotes.Interact:FireServer("M1","King of Curses",tick())
       end
       task.wait(0.2)
    end
 end)
 
 ---------------------------------------------------
--- ⌨️ AUTO KEYS (Z X C)
+-- ⌨️ AUTO KEYS
 ---------------------------------------------------
 Tab:CreateToggle({
-   Name = "Auto Keys (Z X C)",
+   Name = "Auto Keys",
    CurrentValue = false,
-   Callback = function(Value)
-      _G.Keys = Value
-   end,
+   Callback = function(v) _G.Keys = v end,
 })
 
 task.spawn(function()
    while true do
       if _G.Keys then
-         local keys = {"Z","X","C","G","E"}
-
-         for _,key in ipairs(keys) do
-            VIM:SendKeyEvent(true, key, false, game)
-            VIM:SendKeyEvent(false, key, false, game)
+         for _,k in ipairs({"Z","X","C","G","E"}) do
+            VIM:SendKeyEvent(true,k,false,game)
+            VIM:SendKeyEvent(false,k,false,game)
             task.wait(0.1)
          end
       end
@@ -86,9 +150,8 @@ task.spawn(function()
 end)
 
 ---------------------------------------------------
--- 📍 AUTO TP A ZOMBIES
+-- 📍 AUTO TP
 ---------------------------------------------------
-
 Tab:CreateToggle({
    Name = "Auto TP Zombies",
    CurrentValue = false,
@@ -304,29 +367,20 @@ task.spawn(function()
       task.wait(0.03)
    end
 end)
+
 ---------------------------------------------------
 -- 🔄 AUTO REJOIN
 ---------------------------------------------------
 Tab:CreateToggle({
    Name = "Auto Rejoin",
    CurrentValue = false,
-   Callback = function(Value)
-      _G.AutoRejoin = Value
-   end,
+   Callback = function(v) _G.AutoRejoin = v end,
 })
 
 task.spawn(function()
    while true do
       if _G.AutoRejoin then
-         local args = {
-            [1] = "PlayAgain"
-         }
-
-         game:GetService("ReplicatedStorage")
-            :WaitForChild("Assets")
-            :WaitForChild("Remotes")
-            :WaitForChild("Interact")
-            :FireServer(unpack(args))
+         game:GetService("ReplicatedStorage").Assets.Remotes.Interact:FireServer("PlayAgain")
       end
       task.wait(5)
    end
