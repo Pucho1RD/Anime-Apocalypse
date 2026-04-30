@@ -1,0 +1,333 @@
+-- Rayfield
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+-- Window
+local Window = Rayfield:CreateWindow({
+   Name = "Anime Apocalypse",
+   LoadingTitle = "Cargando.",
+   LoadingSubtitle = "by GTK",
+   ConfigurationSaving = {
+      Enabled = false
+   }
+})
+
+-- Tab
+local Tab = Window:CreateTab("Main", 4483362458)
+
+-- Servicios
+local Players = game:GetService("Players")
+local TeleportService = game:GetService("TeleportService")
+local VIM = game:GetService("VirtualInputManager")
+
+local player = Players.LocalPlayer
+
+-- Estados
+_G.Aura = false
+_G.Keys = false
+_G.AutoTP = false
+_G.AutoRejoin = false
+_G.TPMode = "Arriba"
+_G.TPDistance = 5
+
+---------------------------------------------------
+-- 🔥 AURA (usa tu remote)
+---------------------------------------------------
+Tab:CreateToggle({
+   Name = "Aura",
+   CurrentValue = false,
+   Callback = function(Value)
+      _G.Aura = Value
+   end,
+})
+
+task.spawn(function()
+   while true do
+      if _G.Aura then
+         local args = {
+            [1] = "M1",
+            [2] = "King of Curses",
+            [3] = tick()
+         }
+
+         game:GetService("ReplicatedStorage")
+            :WaitForChild("Assets")
+            :WaitForChild("Remotes")
+            :WaitForChild("Interact")
+            :FireServer(unpack(args))
+      end
+      task.wait(0.2)
+   end
+end)
+
+---------------------------------------------------
+-- ⌨️ AUTO KEYS (Z X C)
+---------------------------------------------------
+Tab:CreateToggle({
+   Name = "Auto Keys (Z X C)",
+   CurrentValue = false,
+   Callback = function(Value)
+      _G.Keys = Value
+   end,
+})
+
+task.spawn(function()
+   while true do
+      if _G.Keys then
+         local keys = {"Z","X","C","G","E"}
+
+         for _,key in ipairs(keys) do
+            VIM:SendKeyEvent(true, key, false, game)
+            VIM:SendKeyEvent(false, key, false, game)
+            task.wait(0.1)
+         end
+      end
+      task.wait(1)
+   end
+end)
+
+---------------------------------------------------
+-- 📍 AUTO TP A ZOMBIES
+---------------------------------------------------
+
+Tab:CreateToggle({
+   Name = "Auto TP Zombies",
+   CurrentValue = false,
+   Callback = function(Value)
+      _G.AutoTP = Value
+   end,
+})
+
+-- Dropdown modo
+Tab:CreateDropdown({
+   Name = "Modo TP",
+   Options = {"Arriba", "Detras"},
+   CurrentOption = "Arriba",
+   Callback = function(Option)
+      _G.TPMode = Option
+   end,
+})
+
+-- Dropdown distancia
+Tab:CreateDropdown({
+   Name = "Distancia TP",
+   Options = {"1","2","3","4","5","6","7","8","9","10","15","20","25","30"},
+   CurrentOption = {"5"},
+   Callback = function(Option)
+      local value = Option[1] or Option -- compatibilidad
+      _G.TPDistance = tonumber(value) or 5
+   end,
+})
+
+
+local function enableFly(char)
+   local hrp = char:FindFirstChild("HumanoidRootPart")
+   if not hrp then return end
+
+   if not hrp:FindFirstChild("FlyForce") then
+      local bp = Instance.new("BodyPosition")
+      bp.Name = "FlyForce"
+      bp.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+      bp.P = 5000
+      bp.D = 1000
+      bp.Position = hrp.Position
+      bp.Parent = hrp
+   end
+end
+
+local function disableFly(char)
+   local hrp = char:FindFirstChild("HumanoidRootPart")
+   if hrp and hrp:FindFirstChild("FlyForce") then
+      hrp.FlyForce:Destroy()
+   end
+end
+
+_G.CurrentTarget = nil
+
+local function getTarget()
+   local zombies = workspace:FindFirstChild("Zombies")
+   if not zombies then return nil end
+
+   if _G.CurrentTarget and _G.CurrentTarget.Parent == zombies then
+      return _G.CurrentTarget
+   end
+
+   local list = zombies:GetChildren()
+   if #list > 0 then
+      _G.CurrentTarget = list[10] or list[1]
+      return _G.CurrentTarget
+   end
+
+   _G.CurrentTarget = nil
+   return nil
+end
+
+local function setupFloat(char)
+   local hrp = char:FindFirstChild("HumanoidRootPart")
+   if not hrp then return end
+
+   -- quitar viejos
+   if hrp:FindFirstChild("AlignPosition") then return end
+
+   local att0 = Instance.new("Attachment", hrp)
+   att0.Name = "TP_Attachment"
+
+   local align = Instance.new("AlignPosition")
+   align.Name = "AlignPosition"
+   align.Attachment0 = att0
+   align.MaxForce = 1e6
+   align.Responsiveness = 50
+   align.RigidityEnabled = true
+   align.Parent = hrp
+
+   local alignRot = Instance.new("AlignOrientation")
+   alignRot.Attachment0 = att0
+   alignRot.MaxTorque = 1e6
+   alignRot.Responsiveness = 50
+   alignRot.Parent = hrp
+end
+
+local function clearFloat(char)
+   local hrp = char:FindFirstChild("HumanoidRootPart")
+   if not hrp then return end
+
+   for _,v in pairs(hrp:GetChildren()) do
+      if v.Name == "AlignPosition" or v.Name == "AlignOrientation" or v.Name == "TP_Attachment" then
+         v:Destroy()
+      end
+   end
+end
+
+_G.OrbitAngle = 0
+
+task.spawn(function()
+   while true do
+      local char = player.Character
+
+      if _G.AutoTP and char and char:FindFirstChild("HumanoidRootPart") then
+         local myHRP = char.HumanoidRootPart
+
+         -- asegurar Align
+         if not myHRP:FindFirstChild("TP_Attachment") then
+            local att = Instance.new("Attachment")
+            att.Name = "TP_Attachment"
+            att.Parent = myHRP
+
+            local align = Instance.new("AlignPosition")
+            align.Name = "AlignPosition"
+            align.Attachment0 = att
+            align.MaxForce = math.huge
+            align.Responsiveness = 200
+            align.RigidityEnabled = true
+            align.Parent = myHRP
+
+            local alignRot = Instance.new("AlignOrientation")
+            alignRot.Name = "AlignOrientation"
+            alignRot.Attachment0 = att
+            alignRot.MaxTorque = math.huge
+            alignRot.Responsiveness = 200
+            alignRot.Parent = myHRP
+         end
+
+         -- TARGET
+         local zombies = workspace:FindFirstChild("Zombies")
+
+         if zombies then
+            if not _G.CurrentTarget or _G.CurrentTarget.Parent ~= zombies then
+               local list = zombies:GetChildren()
+               _G.CurrentTarget = list[10] or list[1]
+            end
+
+            local target = _G.CurrentTarget
+
+            if target and target:FindFirstChild("HumanoidRootPart") then
+               local enemyHRP = target.HumanoidRootPart
+
+               local baseDist = tonumber(_G.TPDistance) or 5
+               local dist = baseDist + 2 -- 👈 margen extra
+               local bestScore = -math.huge
+               local bestPos = nil
+
+               local look = enemyHRP.CFrame.LookVector
+
+               -- 🔥 analizar puntos alrededor
+               for i = 1, 8 do
+                  local angle = (i / 8) * math.pi * 2
+
+                  local offset = Vector3.new(
+                     math.cos(angle) * dist,
+                     5,
+                     math.sin(angle) * dist
+                  )
+
+                  local pos = enemyHRP.Position + offset
+
+                  -- 🧠 SCORE
+
+                  local dirToPoint = (pos - enemyHRP.Position).Unit
+                  local frontDot = dirToPoint:Dot(look)
+
+                  local score = -frontDot -- evita frente
+                  score += offset.Y * 0.05 -- altura bonus
+
+                  if score > bestScore then
+                     bestScore = score
+                     bestPos = pos
+                  end
+               end
+
+               local desiredPos = bestPos
+
+               -- aplicar movimiento
+               myHRP.AlignPosition.Position = desiredPos
+               myHRP.AlignOrientation.CFrame = CFrame.new(desiredPos, enemyHRP.Position)
+
+               -- fallback por si acaso
+               myHRP.CFrame = CFrame.new(desiredPos, enemyHRP.Position)
+
+            else
+               _G.CurrentTarget = nil
+            end
+         end
+
+      else
+         -- limpiar
+         if char and char:FindFirstChild("HumanoidRootPart") then
+            for _,v in pairs(char.HumanoidRootPart:GetChildren()) do
+               if v.Name == "AlignPosition" or v.Name == "AlignOrientation" or v.Name == "TP_Attachment" then
+                  v:Destroy()
+               end
+            end
+         end
+         _G.CurrentTarget = nil
+      end
+
+      task.wait(0.03)
+   end
+end)
+---------------------------------------------------
+-- 🔄 AUTO REJOIN
+---------------------------------------------------
+Tab:CreateToggle({
+   Name = "Auto Rejoin",
+   CurrentValue = false,
+   Callback = function(Value)
+      _G.AutoRejoin = Value
+   end,
+})
+
+task.spawn(function()
+   while true do
+      if _G.AutoRejoin then
+         local args = {
+            [1] = "PlayAgain"
+         }
+
+         game:GetService("ReplicatedStorage")
+            :WaitForChild("Assets")
+            :WaitForChild("Remotes")
+            :WaitForChild("Interact")
+            :FireServer(unpack(args))
+      end
+      task.wait(5)
+   end
+end)
