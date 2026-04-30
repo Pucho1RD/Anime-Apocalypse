@@ -203,7 +203,7 @@ Tab:CreateDropdown({
 -- Dropdown distancia
 Tab:CreateDropdown({
    Name = "Distancia TP",
-   Options = {"1","2","3","4","5","6","7","8","9","10","15","20","25","30"},
+   Options = {"1","2","3","4","5","6","7","8","9","10","11","12","13","14","16","17","18","19","20"},
    CurrentOption = {"5"},
    Callback = function(Option)
       local value = Option[1] or Option -- compatibilidad
@@ -362,57 +362,26 @@ task.spawn(function()
          local zombies = workspace:FindFirstChild("Zombies")
 
          if zombies then
-   local target = getTarget()
-   print("Target:", target)
 
-   if target and target:FindFirstChild("HumanoidRootPart") then
-      local enemyHRP = target.HumanoidRootPart
+            local target = getTarget()
 
-               local baseDist = tonumber(_G.TPDistance) or 5
-               local dist = baseDist + 2 -- 👈 margen extra
-               local bestScore = -math.huge
-               local bestPos = nil
+if target and target:FindFirstChild("HumanoidRootPart") then
+    local enemyHRP = target.HumanoidRootPart
 
-               local look = enemyHRP.CFrame.LookVector
+    local baseDist = tonumber(_G.TPDistance) or 5
+    local height = baseDist + 10
 
-               -- 🔥 analizar puntos alrededor
-               for i = 1, 8 do
-                  local angle = (i / 8) * math.pi * 2
+    local desiredPos = enemyHRP.Position + Vector3.new(0, height, 0)
 
-                  local offset = Vector3.new(
-                     math.cos(angle) * dist,
-                     5,
-                     math.sin(angle) * dist
-                  )
+    -- mover jugador
+    myHRP.AlignPosition.Position = desiredPos
+    myHRP.AlignOrientation.CFrame = CFrame.lookAt(desiredPos, enemyHRP.Position)
 
-                  local pos = enemyHRP.Position + offset
-
-                  -- 🧠 SCORE
-
-                  local dirToPoint = (pos - enemyHRP.Position).Unit
-                  local frontDot = dirToPoint:Dot(look)
-
-                  local score = -frontDot -- evita frente
-                  score += offset.Y * 0.05 -- altura bonus
-
-                  if score > bestScore then
-                     bestScore = score
-                     bestPos = pos
-                  end
-               end
-
-               local desiredPos = bestPos
-
-               -- aplicar movimiento
-               myHRP.AlignPosition.Position = desiredPos
-               myHRP.AlignOrientation.CFrame = CFrame.new(desiredPos, enemyHRP.Position)
-
-               -- fallback por si acaso
-               myHRP.CFrame = CFrame.new(desiredPos, enemyHRP.Position)
-
-            else
-               _G.CurrentTarget = nil
-            end
+    -- fallback
+    myHRP.CFrame = CFrame.new(desiredPos, enemyHRP.Position)
+else
+    _G.CurrentTarget = nil
+end
          end
 
       else
